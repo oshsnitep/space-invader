@@ -30,6 +30,11 @@ class Game:
         self.popups = []
         self.last_enemy_killed = None
         self.multiplier = 1
+        # 新規追加: リスポーン状態の初期化
+        self.respawning = False
+        self.respawn_start_time = None
+        # 新規追加: プレイヤー爆発状態フラグ
+        self.player_exploded = False
 
     def spawn_enemy(self):
         """Vegetable のインスタンスを生成する"""
@@ -100,11 +105,14 @@ class Game:
             self.game_over = True
             self.game_over_start_time = pygame.time.get_ticks()
         else:
-            # ライフが残っている場合、プレイヤーの初期位置にリセット
-            self.player.rect.centerx = SCREEN_WIDTH // 2
-            self.player.rect.bottom = SCREEN_HEIGHT - 50
+            # 新規変更: プレイヤー爆発→非表示にし、respawning 状態へ移行
+            self.respawning = True
+            self.respawn_start_time = pygame.time.get_ticks()
+            self.player_exploded = True
             self.last_enemy_killed = None
             self.multiplier = 1
+            # オプション: 投げたナイフをクリア
+            self.knives = []
 
     def update_popups(self):
         """ポップアップメッセージの位置とタイマーを更新する"""
@@ -125,6 +133,8 @@ class Game:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
                     pygame.quit()
                     sys.exit()
+            if self.respawning:
+                continue
             if not self.game_over:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
@@ -136,12 +146,27 @@ class Game:
                 if keys[pygame.K_SPACE]:
                     self.restart_game()
             return
-        # 通常時、プレイヤーの移動処理
-        self.player.handle_movement(keys)
+        if not self.respawning:
+            # 通常時、プレイヤーの移動処理
+            self.player.handle_movement(keys)
 
     def update(self):
         """ゲーム内オブジェクトと状態の更新"""
         if self.game_over:
+            self.update_enemies()
+            self.update_seeds()
+            self.update_popups()
+            return
+        # 新規変更: リスポーン中は敵を下方向へ移動させ5秒後にプレイヤー位置をリセット
+        if self.respawning:
+            for enemy in self.enemies:
+                enemy.rect.y += 5  # 少しずつ下に移動
+            if pygame.time.get_ticks() - self.respawn_start_time >= 5000:
+                self.respawning = False
+                self.player_exploded = False
+                self.enemies = [e for e in self.enemies if e.is_off_screen(SCREEN_HEIGHT)]
+                self.player.rect.centerx = SCREEN_WIDTH // 2
+                self.player.rect.bottom = SCREEN_HEIGHT - 50
             self.update_enemies()
             self.update_seeds()
             self.update_popups()
@@ -249,6 +274,14 @@ class Game:
                 restart_msg = font.render("Press SPACE to restart / Press E to exit", True, (255, 255, 255))
                 restart_rect = restart_msg.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80))
                 self.screen.blit(restart_msg, restart_rect)
+        elif self.respawning:
+            # 新規変更: respawning 中はプレイヤー非表示＋カウントダウン表示
+            current_time = pygame.time.get_ticks()
+            remaining = max(0, 5 - int((current_time - self.respawn_start_time) / 1000))
+            countdown_font = pygame.font.SysFont(None, 72)
+            countdown_msg = countdown_font.render(str(remaining), True, (255, 255, 255))
+            countdown_rect = countdown_msg.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            self.screen.blit(countdown_msg, countdown_rect)
         else:
             # プレイヤーとナイフの描画
             self.screen.blit(self.player.image, self.player.rect)
