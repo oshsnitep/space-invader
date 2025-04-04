@@ -5,6 +5,9 @@ class Player:
     def __init__(self):
         self.image = pygame.Surface((50, 50))
         self.image.fill((0, 255, 0))
+        orig_size = self.image.get_size()
+        new_size = (int(orig_size[0] * 2/3), int(orig_size[1] * 2/3))
+        self.image = pygame.transform.scale(self.image, new_size)
         self.rect = self.image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
         self.speed = 5
 

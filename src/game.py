@@ -22,6 +22,10 @@ class Game:
         self.game_over = False
         self.game_over_start_time = None
         self.player = Player()
+        # 新規追加: プレイヤーのサイズを2/3に縮小
+        orig_size = self.player.image.get_size()
+        new_size = (int(orig_size[0] * 2/3), int(orig_size[1] * 2/3))
+        self.player.image = pygame.transform.scale(self.player.image, new_size)
         # ゲーム内オブジェクトのリセット
         self.enemies = []
         self.knives = []
